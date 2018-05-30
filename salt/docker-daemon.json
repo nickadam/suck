@@ -1,5 +1,5 @@
 {
-  "bip": "{{ pillar[grains['id']]['bip'] }}",
+  "bip": "{{ pillar['docker-networks'][grains['id']]['bip'] }}",
   "iptables": false,
   "ip-masq": false
 }

@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+
+######################################
+#  Static routes for docker containers
+#  @nickadam
+######################################
+
+ROUTES_FILE=/etc/docker-routes/routes.conf
+
+function escape_for_grep(){
+  echo $1 | sed 's/\./\\./g' | sed 's/\//\\\//g'
+}
+
+# get pattern to exclude local docker0 network from static routes
+function get_localnet_pattern(){
+  escape_for_grep $(ip route | grep "dev docker0 " | grep -v " via " | awk '{print $1}')
+}
+
+# loop through line in the routes file and add the route
+function d_start(){
+  grep -v $1 $ROUTES_FILE | grep "^[0-9]" | while read line
+  do
+    network=$(echo $line | awk '{print $1}')
+    gateway=$(echo $line | awk '{print $2}')
+    if ! ip route | grep "^$(escape_for_grep $network) via $(escape_for_grep $gateway) " > /dev/null
+    then
+      ip route add $network via $gateway
+    fi
+  done
+}
+
+# loop through line in the routes file and delete the route
+function d_stop(){
+  grep -v $1 $ROUTES_FILE | grep "^[0-9]" | while read line
+  do
+    network=$(echo $line | awk '{print $1}')
+    gateway=$(echo $line | awk '{print $2}')
+    if ip route | grep "^$(escape_for_grep $network) via $(escape_for_grep $gateway) " > /dev/null
+    then
+      ip route del $network via $gateway
+    fi
+  done
+}
+
+# loop through line in the routes file and show the defined routes in the current route table
+function d_status(){
+  grep -v $1 $ROUTES_FILE | grep "^[0-9]" | while read line
+  do
+    network=$(echo $line | awk '{print $1}')
+    gateway=$(echo $line | awk '{print $2}')
+    if ip route | grep "^$(escape_for_grep $network) via $(escape_for_grep $gateway) " > /dev/null
+    then
+      echo "OK: $network via $gateway exists"
+    else
+      echo "Error: $network via $gateway does not exist"
+    fi
+  done
+}
+
+# give up if we can't find the docker0 network pattern
+case "$1" in
+  start|stop|restart|status)
+    docker ps > /dev/null #invoke docker to create docker0
+    localnetp=$(get_localnet_pattern)
+    if [ -z $localnetp ]
+    then
+      echo "Error: Can't find docker0 network"
+      exit 1
+    fi
+    ;;
+esac
+
+# do it, or print usage
+case "$1" in
+  start)
+    d_start $localnetp 
+    ;;
+  stop)
+    d_stop $localnetp
+    ;;
+  restart)
+    d_stop $localnetp
+    d_start $localnetp
+    ;;
+  status)
+    d_status $localnetp
+    ;;
+   *)
+   echo "Usage: $0 {start|stop|restart|status}" >&2
+   exit 3
+   ;;
+esac

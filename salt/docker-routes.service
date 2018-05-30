@@ -1,0 +1,10 @@
+[Unit]
+Description = Docker static routes
+After = docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/docker-routes start
+
+[Install]
+WantedBy = multi-user.target
