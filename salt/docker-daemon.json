@@ -1,0 +1,5 @@
+{
+  "bip": "{{ pillar[grains['id']]['bip'] }}",
+  "iptables": false,
+  "ip-masq": false
+}
