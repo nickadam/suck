@@ -44,5 +44,5 @@ docker-iptables:
     - out-interface: {{ pillar['docker-networks'][grains['id']]['gateway-dev'] }}
     - jump: MASQUERADE
 
-iptables-save:
+iptables-save > /etc/iptables/rules.v4:
   cmd.run
